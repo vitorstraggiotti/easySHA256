@@ -108,7 +108,7 @@ uint8_t *sha256(uint8_t *Data, uint64_t DataSizeByte)
 	}
 	
 	//---------------------- debug use --------------------------------
-	//print_block(DataBlock, NumOfBlocks);
+	print_block(DataBlock, NumOfBlocks);
 	//-----------------------------------------------------------------
 	
 	//Inicialize current hash table

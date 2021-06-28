@@ -12,16 +12,16 @@ int main(int argc, char *argv[])
 	uint8_t Tmp, *Digest, *Data;
 	uint64_t FileSizeByte = 0;
 	
-
+	//input arguments validation
 	if(argc != 2)
 	{
 		printf("Error: invalid number of arguments.\n");
 		printf("Use: %s <path_to_file>\n", argv[0]);
 		exit(EXIT_FAILURE);
 	}
-	
+		
+	//Find file size in bytes
 	File = fopen(argv[1], "rb");
-	
 	while(1)
 	{
 		fread(&Tmp, sizeof(uint8_t), 1, File);
@@ -31,14 +31,15 @@ int main(int argc, char *argv[])
 	}
 	fclose(File);
 	
-	File = fopen(argv[1], "r");
-	
+	//Copying file into memory
+	File = fopen(argv[1], "rb");
 	Data = (uint8_t *)malloc(FileSizeByte * sizeof(uint8_t));
-	
 	fread(Data, sizeof(uint8_t), FileSizeByte, File);
+	fclose(File);
 	
 	Digest = sha256(Data, FileSizeByte);
 	
+	//Printing digest
 	printf("\nDigest: ");
 	for(uint32_t i = 0; i < 32; i++)
 	{
@@ -46,7 +47,7 @@ int main(int argc, char *argv[])
 	}
 	printf("\n\n");
 	
-//print constants
+//print constants for debug
 #if 0	
 	printf("\n\n");
 	for(int i = 0; i < 8; i++)
