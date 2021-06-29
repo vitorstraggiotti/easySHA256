@@ -110,7 +110,7 @@ static uint32_t major(uint32_t x, uint32_t y, uint32_t z)
 	return (x & y) ^ (x & z) ^ (y & z);
 }
 /*******************************************************************************/
-uint32_t int_ratio_ceil(uint64_t Numerator, uint64_t Denominator)
+static uint32_t int_ratio_ceil(uint64_t Numerator, uint64_t Denominator)
 {
 	if((Numerator % Denominator) != 0)
 	{
@@ -120,6 +120,34 @@ uint32_t int_ratio_ceil(uint64_t Numerator, uint64_t Denominator)
 	{
 		return Numerator / Denominator;
 	}
+}
+/******************************************************************************/
+static void print_progress(uint64_t CurrState, uint64_t Min, uint64_t Max, uint32_t BarSize)
+{
+	unsigned int BarPosition;
+	float Percentage;
+	
+	//Calculating progress
+	BarPosition = (unsigned int)(((long)BarSize * (CurrState - Min)) / (Max - Min));
+	BarPosition++;
+	Percentage = 100.0 * ((float)(CurrState - Min) / (float)(Max - Min));
+	
+	//Drawing progress bar
+	fputs("\r[", stdout);
+	for(unsigned int i = 0; i < BarSize; i++)
+	{
+		if(i < BarPosition)
+		{
+			fputc('=', stdout);
+		}else
+		{
+			fputc('.', stdout);
+		}
+	}
+	if(CurrState > (Max - 1500)) Percentage = 100.0;
+	printf("] %.3f %%", Percentage);
+	fflush(stdout);
+
 }
 /*******************************************************************************/
 //Calculates sha256 of Data
@@ -151,12 +179,15 @@ uint8_t *sha256(uint8_t *Data, uint64_t DataSizeByte)
 	NumOfBlocks = int_ratio_ceil(DataSizeByte, 64);
 	
 	//Allocating 512bits blocks
+	printf("Allocating blocks in memory...\n");
+	fflush(stdout);
 	DataBlock = (uint8_t **)malloc(NumOfBlocks * sizeof(uint8_t *));
 	for(uint32_t i = 0; i < NumOfBlocks; i++)
 	{
 		DataBlock[i] = (uint8_t *)malloc(64 * sizeof(uint8_t));
 	}
 	
+	printf("Pre-processing data into blocks...\n");
 	for(uint32_t Block = 0; Block < NumOfBlocks; Block++)
 	{
 		if(Block == NumOfBlocks - 1) //if it's in the last block
@@ -192,10 +223,20 @@ uint8_t *sha256(uint8_t *Data, uint64_t DataSizeByte)
 				DataBlock[Block][ByteOnBlock] = Data[(Block * 64) + ByteOnBlock];
 			}
 		}
+		
+		if(NumOfBlocks > 150000)
+		{
+			if((Block % 1500) == 0)
+				print_progress((uint64_t)Block, 0, (uint64_t)(NumOfBlocks - 1), 50);
+		}
+		else
+		{
+			print_progress((uint64_t)Block, 0, (uint64_t)(NumOfBlocks - 1), 50);
+		}
 	}
 	
 	//---------------------- debug use --------------------------------
-	print_block(DataBlock, NumOfBlocks);
+	//print_block(DataBlock, NumOfBlocks);
 	//-----------------------------------------------------------------
 	
 	//Inicialize current hash table
@@ -209,6 +250,7 @@ uint8_t *sha256(uint8_t *Data, uint64_t DataSizeByte)
 	H[7] = HashStart[7];  
 	
 	//Create message schedule loop 512bit block
+	printf("\nData compression...\n");
 	for(uint32_t Block = 0; Block < NumOfBlocks; Block++)
 	{
 		//(divide 512bits block into 16 32bit words [w0 t0 w15])
@@ -269,7 +311,19 @@ uint8_t *sha256(uint8_t *Data, uint64_t DataSizeByte)
 		H[5] += TmpH[f];
 		H[6] += TmpH[g];
 		H[7] += TmpH[h];
+		
+		if(NumOfBlocks > 150000)
+		{
+			if((Block % 1500) == 0)
+				print_progress((uint64_t)Block, 0, (uint64_t)(NumOfBlocks - 1), 50);
+		}
+		else
+		{
+			print_progress((uint64_t)Block, 0, (uint64_t)(NumOfBlocks - 1), 50);
+		}
+		
 	}
+	printf("\n");
 	
 	//Deallocate DataBlock
 	for(uint32_t i = 0; i < NumOfBlocks; i++)

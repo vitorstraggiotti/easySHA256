@@ -1,3 +1,9 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+	Simple program to compute the SHA256 digest of given file
+	
+	Author: Vitor Henrique Andrade Helfensteller Straggiotti
+	Date: 29/06/2021 (DD/MM/YYYY)
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,6 +28,7 @@ int main(int argc, char *argv[])
 		
 	//Find file size in bytes
 	File = fopen(argv[1], "rb");
+	printf("Finding file size...\n");
 	while(1)
 	{
 		fread(&Tmp, sizeof(uint8_t), 1, File);
