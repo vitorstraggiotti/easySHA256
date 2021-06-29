@@ -34,6 +34,93 @@ const uint32_t K_const[64] =   {0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
 
 enum TmpH {a, b, c, d, e, f, g, h};
 
+/******************************************************************************/
+//Print the pre-processed data in 512bits blocks
+static void print_block(uint8_t **DataBlock, uint32_t NumOfBlocks)
+{
+	for(uint32_t Block = 0; Block < NumOfBlocks; Block++)
+	{
+		printf("Block %u:\n", Block);
+		for(uint32_t ByteOnBlock = 0; ByteOnBlock < 64; ByteOnBlock++)
+		{
+			if((ByteOnBlock % 8) == 0) printf("\n");
+			printf("%02X\t", DataBlock[Block][ByteOnBlock]);
+		}
+		printf("\n\n");
+	}
+}
+/******************************************************************************/
+//Calculate the rotations and shifts of sigma1 function
+static uint32_t sigma1(uint32_t x)
+{
+	uint32_t RotateRight17, RotateRight19, ShiftRight10;
+	
+	RotateRight17 = (x >> 17) | (x << 15);
+	RotateRight19 = (x >> 19) | (x << 13);
+	ShiftRight10 = x >> 10;
+	
+	return RotateRight17 ^ RotateRight19 ^ ShiftRight10;
+}
+/******************************************************************************/
+//Calculate the rotations and shifts of sigma0 function
+static uint32_t sigma0(uint32_t x)
+{
+	uint32_t RotateRight7, RotateRight18, ShiftRight3;
+
+	RotateRight7 = (x >> 7) | (x << 25);
+	RotateRight18 = (x >> 18) | (x << 14);
+	ShiftRight3 = x >> 3;
+	
+	return RotateRight7 ^ RotateRight18 ^ ShiftRight3;
+}
+/******************************************************************************/
+//if bit of x is 1 return bit y else return z
+static uint32_t choice(uint32_t x, uint32_t y, uint32_t z)
+{
+	return (x & y) ^ ((~x) & z);
+}
+/******************************************************************************/
+//Calculate the rotations of BigSigma1 function
+static uint32_t BigSigma1(uint32_t x)
+{
+	uint32_t RotateRight6, RotateRight11, RotateRight25;
+	
+	RotateRight6 = (x >> 6) | (x << 26);
+	RotateRight11 = (x >> 11) | (x << 21);
+	RotateRight25 = (x >> 25) | (x << 7);
+	
+	return RotateRight6 ^ RotateRight11 ^ RotateRight25;
+}
+/******************************************************************************/
+//Calculate the rotations of BigSigma0 function
+static uint32_t BigSigma0(uint32_t x)
+{
+	uint32_t RotateRight2, RotateRight13, RotateRight22;
+	
+	RotateRight2 = (x >> 2) | (x << 30);
+	RotateRight13 = (x >> 13) | (x << 19);
+	RotateRight22 = (x >> 22) | (x << 10);
+	
+	return RotateRight2 ^ RotateRight13 ^ RotateRight22;
+}
+/******************************************************************************/
+//return the bit value thai is majority
+static uint32_t major(uint32_t x, uint32_t y, uint32_t z)
+{
+	return (x & y) ^ (x & z) ^ (y & z);
+}
+/*******************************************************************************/
+uint32_t int_ratio_ceil(uint64_t Numerator, uint64_t Denominator)
+{
+	if((Numerator % Denominator) != 0)
+	{
+		return (Numerator / Denominator) + 1;
+	}
+	else
+	{
+		return Numerator / Denominator;
+	}
+}
 /*******************************************************************************/
 //Calculates sha256 of Data
 uint8_t *sha256(uint8_t *Data, uint64_t DataSizeByte)
@@ -61,7 +148,7 @@ uint8_t *sha256(uint8_t *Data, uint64_t DataSizeByte)
 	BytesForPadding = 64 - ((DataSizeByte + 9)%64);
 	
 	//Calculating the quantity of 512bits data blocks
-	NumOfBlocks = (uint32_t)ceil((double)DataSizeByte/(double)64);
+	NumOfBlocks = int_ratio_ceil(DataSizeByte, 64);
 	
 	//Allocating 512bits blocks
 	DataBlock = (uint8_t **)malloc(NumOfBlocks * sizeof(uint8_t *));
@@ -199,87 +286,12 @@ uint8_t *sha256(uint8_t *Data, uint64_t DataSizeByte)
 	{
 		Digest[i]   = (uint8_t)((H[i/4] >> 24) & 0x000000FF);
 		Digest[i+1] = (uint8_t)((H[i/4] >> 16) & 0x000000FF);
-		Digest[i+2] = (uint8_t)((H[i/4] >> 8) % 0x000000FF);
+		Digest[i+2] = (uint8_t)((H[i/4] >> 8) & 0x000000FF);
 		Digest[i+3] = (uint8_t)(H[i/4] & 0x000000FF);
 	}
 	
 	return Digest;
 	
-}
-/******************************************************************************/
-//Print the pre-processed data in 512bits blocks
-void print_block(uint8_t **DataBlock, uint32_t NumOfBlocks)
-{
-	for(uint32_t Block = 0; Block < NumOfBlocks; Block++)
-	{
-		printf("Block %u:\n", Block);
-		for(uint32_t ByteOnBlock = 0; ByteOnBlock < 64; ByteOnBlock++)
-		{
-			if((ByteOnBlock % 8) == 0) printf("\n");
-			printf("%02X\t", DataBlock[Block][ByteOnBlock]);
-		}
-		printf("\n\n");
-	}
-}
-/******************************************************************************/
-//Calculate the rotations and shifts of sigma1 function
-uint32_t sigma1(uint32_t x)
-{
-	uint32_t RotateRight17, RotateRight19, ShiftRight10;
-	
-	RotateRight17 = (x >> 17) | (x << 15);
-	RotateRight19 = (x >> 19) | (x << 13);
-	ShiftRight10 = x >> 10;
-	
-	return RotateRight17 ^ RotateRight19 ^ ShiftRight10;
-}
-/******************************************************************************/
-//Calculate the rotations and shifts of sigma0 function
-uint32_t sigma0(uint32_t x)
-{
-	uint32_t RotateRight7, RotateRight18, ShiftRight3;
-
-	RotateRight7 = (x >> 7) | (x << 25);
-	RotateRight18 = (x >> 18) | (x << 14);
-	ShiftRight3 = x >> 3;
-	
-	return RotateRight7 ^ RotateRight18 ^ ShiftRight3;
-}
-/******************************************************************************/
-//if bit of x is 1 return bit y else return z
-uint32_t choice(uint32_t x, uint32_t y, uint32_t z)
-{
-	return (x & y) ^ ((!x) & z);
-}
-/******************************************************************************/
-//Calculate the rotations of BigSigma1 function
-uint32_t BigSigma1(uint32_t x)
-{
-	uint32_t RotateRight6, RotateRight11, RotateRight25;
-	
-	RotateRight6 = (x >> 6) | (x << 26);
-	RotateRight11 = (x >> 11) | (x << 21);
-	RotateRight25 = (x >> 25) | (x << 7);
-	
-	return RotateRight6 ^ RotateRight11 ^ RotateRight25;
-}
-/******************************************************************************/
-//Calculate the rotations of BigSigma0 function
-uint32_t BigSigma0(uint32_t x)
-{
-	uint32_t RotateRight2, RotateRight13, RotateRight22;
-	
-	RotateRight2 = (x >> 2) | (x << 30);
-	RotateRight13 = (x >> 13) | (x << 19);
-	RotateRight22 = (x >> 22) | (x << 10);
-	
-	return RotateRight2 ^ RotateRight13 ^ RotateRight22;
-}
-/******************************************************************************/
-//return the bit value thai is majority
-uint32_t major(uint32_t x, uint32_t y, uint32_t z)
-{
-	return (x & y) ^ (x & z) ^ (y & z);
 }
 
 
