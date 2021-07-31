@@ -7,16 +7,20 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
 #include <stdint.h>
+#include <sys/stat.h>
 #include "sha256.h"
 
+#define DEBUG_FLAG		0
 
 int main(int argc, char *argv[])
 {
 	FILE *File;
 	uint8_t Tmp, *Digest, *Data;
 	uint64_t FileSizeByte = 0;
+	
+	//Hold file informations
+	struct stat FileStatus;
 	
 	//input arguments validation
 	if(argc != 2)
@@ -26,46 +30,32 @@ int main(int argc, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 		
-	//Find file size in bytes
-	File = fopen(argv[1], "rb");
-	printf("Finding file size...\n");
-	while(1)
+	//Open file on read only mode and find size in bytes
+	if((File = fopen(argv[1], "rb")) == NULL)
 	{
-		fread(&Tmp, sizeof(uint8_t), 1, File);
-		if(ferror(File)) break;
-		if(feof(File)) break;
-		FileSizeByte++;
+		printf("Error: Could not open file or it does not exist.\n");
+		exit(EXIT_FAILURE);
 	}
-	fclose(File);
+	stat(argv[1], &FileStatus);
+	FileSizeByte = FileStatus.st_size;
+
+	/* Need Rewrite to compute digest without geting the entire file into RAM */
 	
 	//Copying file into memory
-	File = fopen(argv[1], "rb");
 	Data = (uint8_t *)malloc(FileSizeByte * sizeof(uint8_t));
 	fread(Data, sizeof(uint8_t), FileSizeByte, File);
 	fclose(File);
 	
+	//Computing digest
 	Digest = sha256(Data, FileSizeByte);
 	
 	//Printing digest
-	printf("\nDigest: ");
+	printf("\nDigest in hex: ");
 	for(uint32_t i = 0; i < 32; i++)
 	{
 		printf("%02x ", Digest[i]);
 	}
 	printf("\n\n");
 	
-//print constants for debug
-#if 0	
-	printf("\n\n");
-	for(int i = 0; i < 8; i++)
-	{
-		printf("%d: %x\n", i, Hash[i]);
-	}
-	printf("\n\n");
-	for(int i = 0; i < 64; i++)
-	{
-		printf("%d: %x\n", i, K_const[i]);
-	}
-#endif
 	return 0;
 }

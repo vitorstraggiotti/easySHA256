@@ -7,8 +7,6 @@
 #ifndef SHA256_H
 #define SHA256_H
 
-extern const uint32_t HashStart[8];
-extern const uint32_t K_const[64];
 
 /******************************************************************************/
 //Calculates sha256 of Data

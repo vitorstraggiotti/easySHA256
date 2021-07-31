@@ -10,6 +10,8 @@
 #include <stdio.h>
 #include "sha256.h"
 
+#define DEBUG_FLAG		0
+
 //inicialize hash values (H)
 const uint32_t HashStart[8] =  {0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
 								0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19};
@@ -35,7 +37,8 @@ const uint32_t K_const[64] =   {0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
 enum TmpH {a, b, c, d, e, f, g, h};
 
 /******************************************************************************/
-//Print the pre-processed data in 512bits blocks
+#if DEBUG_FLAG
+//Print the pre-processed data in 512bits blocks (debug use)
 static void print_block(uint8_t **DataBlock, uint32_t NumOfBlocks)
 {
 	for(uint32_t Block = 0; Block < NumOfBlocks; Block++)
@@ -49,6 +52,7 @@ static void print_block(uint8_t **DataBlock, uint32_t NumOfBlocks)
 		printf("\n\n");
 	}
 }
+#endif
 /******************************************************************************/
 //Calculate the rotations and shifts of sigma1 function
 static uint32_t sigma1(uint32_t x)
@@ -104,12 +108,13 @@ static uint32_t BigSigma0(uint32_t x)
 	return RotateRight2 ^ RotateRight13 ^ RotateRight22;
 }
 /******************************************************************************/
-//return the bit value thai is majority
+//return the bit value that is majority
 static uint32_t major(uint32_t x, uint32_t y, uint32_t z)
 {
 	return (x & y) ^ (x & z) ^ (y & z);
 }
 /*******************************************************************************/
+//Ceil function of a division
 static uint32_t int_ratio_ceil(uint64_t Numerator, uint64_t Denominator)
 {
 	if((Numerator % Denominator) != 0)
@@ -124,12 +129,15 @@ static uint32_t int_ratio_ceil(uint64_t Numerator, uint64_t Denominator)
 /******************************************************************************/
 static void print_progress(uint64_t CurrState, uint64_t Min, uint64_t Max, uint32_t BarSize)
 {
-	unsigned int BarPosition;
+	uint32_t BarPosition;
 	float Percentage;
 	
+	//Divide by zero error
+	if(Min == Max)
+		return;
+	
 	//Calculating progress
-	BarPosition = (unsigned int)(((long)BarSize * (CurrState - Min)) / (Max - Min));
-	BarPosition++;
+	BarPosition = (uint32_t)(((uint64_t)BarSize * (CurrState - Min)) / (Max - Min));
 	Percentage = 100.0 * ((float)(CurrState - Min) / (float)(Max - Min));
 	
 	//Drawing progress bar
@@ -150,7 +158,7 @@ static void print_progress(uint64_t CurrState, uint64_t Min, uint64_t Max, uint3
 
 }
 /*******************************************************************************/
-//Calculates sha256 of Data
+//Calculates sha256 of Data 
 uint8_t *sha256(uint8_t *Data, uint64_t DataSizeByte)
 {
 	uint64_t DataSizeBits;
@@ -180,7 +188,6 @@ uint8_t *sha256(uint8_t *Data, uint64_t DataSizeByte)
 	
 	//Allocating 512bits blocks
 	printf("Allocating blocks in memory...\n");
-	fflush(stdout);
 	DataBlock = (uint8_t **)malloc(NumOfBlocks * sizeof(uint8_t *));
 	for(uint32_t i = 0; i < NumOfBlocks; i++)
 	{
@@ -224,9 +231,11 @@ uint8_t *sha256(uint8_t *Data, uint64_t DataSizeByte)
 			}
 		}
 		
+		/* Need better implementation for progress bar */
+		
 		if(NumOfBlocks > 150000)
 		{
-			if((Block % 1500) == 0)
+			if(((Block % 1500) == 0) | (Block == NumOfBlocks - 1))
 				print_progress((uint64_t)Block, 0, (uint64_t)(NumOfBlocks - 1), 50);
 		}
 		else
@@ -234,11 +243,11 @@ uint8_t *sha256(uint8_t *Data, uint64_t DataSizeByte)
 			print_progress((uint64_t)Block, 0, (uint64_t)(NumOfBlocks - 1), 50);
 		}
 	}
-	
-	//---------------------- debug use --------------------------------
-	//print_block(DataBlock, NumOfBlocks);
-	//-----------------------------------------------------------------
-	
+
+#if DEBUG_FLAG
+	print_block(DataBlock, NumOfBlocks);
+#endif
+
 	//Inicialize current hash table
 	H[0] = HashStart[0];  
 	H[1] = HashStart[1];  
@@ -256,14 +265,14 @@ uint8_t *sha256(uint8_t *Data, uint64_t DataSizeByte)
 		//(divide 512bits block into 16 32bit words [w0 t0 w15])
 		for(uint32_t ByteOnBlock = 0; ByteOnBlock < 64; ByteOnBlock += 4)
 		{
-			W[ByteOnBlock / 4] =    (((uint32_t)DataBlock[Block][ByteOnBlock]) << 24) |
+			W[ByteOnBlock / 4] = (((uint32_t)DataBlock[Block][ByteOnBlock]) << 24) |
 								 (((uint32_t)DataBlock[Block][ByteOnBlock + 1]) << 16) |
 								 (((uint32_t)DataBlock[Block][ByteOnBlock + 2]) << 8) |
 								 ((uint32_t)DataBlock[Block][ByteOnBlock + 3]);
 			
-			//-------------------- debug use ----------------------------
-			//printf("w(%d): %08x\n", ByteOnBlock/4, W[ByteOnBlock/4]);
-			//-----------------------------------------------------------
+#if DEBUG_FLAG
+			printf("w(%d): %08x\n", ByteOnBlock/4, W[ByteOnBlock/4]);
+#endif
 		}
 		
 		//add more 48 32bit words [w16 to w63]
@@ -271,9 +280,9 @@ uint8_t *sha256(uint8_t *Data, uint64_t DataSizeByte)
 		{
 			W[i] = sigma1(W[i-2]) + W[i-7] + sigma0(W[i-15]) + W[i-16];
 			
-			//---------------- debug use ------------------------------
-			//printf("w(%d): %08x\n", i, W[i]);
-			//---------------------------------------------------------
+#if DEBUG_FLAG
+			printf("w(%d): %08x\n", i, W[i]);
+#endif
 		}
 		
 		//inicialize variables a, b, c, d, e, f, g, h to h[0::7] respectively
