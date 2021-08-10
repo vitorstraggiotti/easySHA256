@@ -3,5 +3,5 @@ A tiny and simple C library without dependencies that compute SHA256 digest from
 
 Comes with a test program called "digest256" that compute the SHA256 disgest of an input file.
 
-To build "digest256" you need make and a C copiler and just run:
+To build "digest256" you need make and gcc copiler and just run:
 `$ make`

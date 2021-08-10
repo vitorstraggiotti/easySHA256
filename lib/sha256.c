@@ -8,7 +8,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include "sha256.h"
+#include "../include/sha256.h"
 
 #define DEBUG_FLAG		0
 
@@ -162,7 +162,7 @@ static void print_progress(uint64_t CurrState, uint64_t Min, uint64_t Max, uint3
 uint8_t *sha256(uint8_t *Data, uint64_t DataSizeByte)
 {
 	uint64_t DataSizeBits;
-	uint32_t BytesForPadding, NumOfBlocks;
+	uint32_t NumOfBlocks;
 	uint8_t **DataBlock;
 	
 	//schedule array
@@ -179,9 +179,6 @@ uint8_t *sha256(uint8_t *Data, uint64_t DataSizeByte)
 
 	//Calculating the data size in bits
 	DataSizeBits = DataSizeByte * 8;
-	
-	//Calculating the quantity of zero bytes to append to data
-	BytesForPadding = 64 - ((DataSizeByte + 9)%64);
 	
 	//Calculating the quantity of 512bits data blocks
 	NumOfBlocks = int_ratio_ceil(DataSizeByte, 64);

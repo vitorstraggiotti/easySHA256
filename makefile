@@ -1,17 +1,17 @@
 
 CC = gcc
+CC_FLAGS = -Wall -pedantic -O2 -c
 
-SOURCE_FILES = sha256.c file_digest256.c
 PROG_FILENAME = digest256
 
-all:
-	$(CC) -lm -o $(PROG_FILENAME) $(SOURCE_FILES)
+all: ./obj/main.o ./obj/sha256.o
+	$(CC) -o $(PROG_FILENAME) $^
 
-release:
-	$(CC) -O2 -lm -o $(PROG_FILENAME) $(SOURCE_FILES)
+./obj/main.o: main.c
+	$(CC) $(CC_FLAGS) -o $@ $^
 
-debug:
-	$(CC) -g -lm -o $(PROG_FILENAME) $(SOURCE_FILES)
+./obj/sha256.o: ./lib/sha256.c
+	$(CC) $(CC_FLAGS) -o $@ $^ 
 
 clean:
-	rm $(PROG_FILENAME)
+	rm $(PROG_FILENAME) ./obj/*

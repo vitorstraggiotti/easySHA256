@@ -1,6 +1,6 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 	Simple program to compute the SHA256 digest of given file
-	
+
 	Author: Vitor Henrique Andrade Helfensteller Straggiotti
 	Date: 29/06/2021 (DD/MM/YYYY)
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -9,19 +9,19 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <sys/stat.h>
-#include "sha256.h"
+#include "./include/sha256.h"
 
 #define DEBUG_FLAG		0
 
 int main(int argc, char *argv[])
 {
 	FILE *File;
-	uint8_t Tmp, *Digest, *Data;
+	uint8_t *Digest, *Data;
 	uint64_t FileSizeByte = 0;
-	
+
 	//Hold file informations
 	struct stat FileStatus;
-	
+
 	//input arguments validation
 	if(argc != 2)
 	{
@@ -29,7 +29,7 @@ int main(int argc, char *argv[])
 		printf("Use: %s <path_to_file>\n", argv[0]);
 		exit(EXIT_FAILURE);
 	}
-		
+
 	//Open file on read only mode and find size in bytes
 	if((File = fopen(argv[1], "rb")) == NULL)
 	{
