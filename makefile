@@ -13,5 +13,6 @@ all: ./obj/main.o ./obj/sha256.o
 ./obj/sha256.o: ./lib/sha256.c
 	$(CC) $(CC_FLAGS) -o $@ $^ 
 
+.PHONY: clean
 clean:
 	rm $(PROG_FILENAME) ./obj/*
