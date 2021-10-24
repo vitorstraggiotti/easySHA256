@@ -9,7 +9,7 @@
 
 
 /******************************************************************************/
-//Calculates sha256 of Data
+//Calculates sha256 of Data. Return pointer to 32 unsigned bytes.
 uint8_t *sha256(uint8_t *Data, uint64_t DataSizeByte);
 
 

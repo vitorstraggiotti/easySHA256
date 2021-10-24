@@ -132,7 +132,7 @@ static uint32_t int_ratio_ceil(uint64_t Numerator, uint64_t Denominator)
 uint8_t *sha256(uint8_t *Data, uint64_t DataSizeByte)
 {
 	uint64_t DataSizeBits;
-	uint32_t NumOfBlocks;
+	uint64_t NumOfBlocks;
 	uint8_t **DataBlock;
 	
 	bar_t		*Bar;
@@ -159,7 +159,7 @@ uint8_t *sha256(uint8_t *Data, uint64_t DataSizeByte)
 	//Allocating 512bits blocks
 	printf("Allocating blocks in memory...\n");
 	DataBlock = (uint8_t **)malloc(NumOfBlocks * sizeof(uint8_t *));
-	for(uint32_t i = 0; i < NumOfBlocks; i++)
+	for(uint64_t i = 0; i < NumOfBlocks; i++)
 	{
 		DataBlock[i] = (uint8_t *)malloc(64 * sizeof(uint8_t));
 	}
@@ -169,12 +169,12 @@ uint8_t *sha256(uint8_t *Data, uint64_t DataSizeByte)
 	Graph = init_bar_graph('|', '#', ' ', '|');
 	
 	printf("Pre-processing data into blocks...\n");
-	for(uint32_t Block = 0; Block < NumOfBlocks; Block++)
+	for(uint64_t Block = 0; Block < NumOfBlocks; Block++)
 	{
 		if(Block == NumOfBlocks - 1) //if it's in the last block
 		{
 			//copy the last bytes from Data
-			for(uint32_t ByteOnBlock = 0; ByteOnBlock < (DataSizeByte % 64); ByteOnBlock++)
+			for(uint64_t ByteOnBlock = 0; ByteOnBlock < (DataSizeByte % 64); ByteOnBlock++)
 			{
 				DataBlock[Block][ByteOnBlock] = Data[(Block * 64) + ByteOnBlock];
 			}
@@ -182,7 +182,7 @@ uint8_t *sha256(uint8_t *Data, uint64_t DataSizeByte)
 			DataBlock[Block][DataSizeByte % 64] = 0x80;
 			
 			//Pad with 0's until data is multiple of (512-64)=448
-			for(uint32_t ByteOnBlock = (DataSizeByte % 64) + 1; ByteOnBlock < 56; ByteOnBlock++)
+			for(uint64_t ByteOnBlock = (DataSizeByte % 64) + 1; ByteOnBlock < 56; ByteOnBlock++)
 			{
 				DataBlock[Block][ByteOnBlock] = 0x0;
 			}
@@ -199,14 +199,14 @@ uint8_t *sha256(uint8_t *Data, uint64_t DataSizeByte)
 		else
 		{
 			//copy bytes from Data to block
-			for(uint32_t ByteOnBlock = 0; ByteOnBlock < 64; ByteOnBlock++)
+			for(uint64_t ByteOnBlock = 0; ByteOnBlock < 64; ByteOnBlock++)
 			{
 				DataBlock[Block][ByteOnBlock] = Data[(Block * 64) + ByteOnBlock];
 			}
 		}
 		
 		//Update progress bar
-		update_bar(Bar, Graph, (uint64_t)Block);		
+		update_bar(Bar, Graph, Block);		
 	}
 	destroy_bar(Bar);
 
@@ -229,10 +229,10 @@ uint8_t *sha256(uint8_t *Data, uint64_t DataSizeByte)
 	
 	//Create message schedule loop 512bit block
 	printf("Data compression...\n");
-	for(uint32_t Block = 0; Block < NumOfBlocks; Block++)
+	for(uint64_t Block = 0; Block < NumOfBlocks; Block++)
 	{
 		//(divide 512bits block into 16 32bit words [w0 t0 w15])
-		for(uint32_t ByteOnBlock = 0; ByteOnBlock < 64; ByteOnBlock += 4)
+		for(uint64_t ByteOnBlock = 0; ByteOnBlock < 64; ByteOnBlock += 4)
 		{
 			W[ByteOnBlock / 4] = (((uint32_t)DataBlock[Block][ByteOnBlock]) << 24) |
 								 (((uint32_t)DataBlock[Block][ByteOnBlock + 1]) << 16) |
@@ -244,7 +244,7 @@ uint8_t *sha256(uint8_t *Data, uint64_t DataSizeByte)
 #endif
 		}
 		
-		//add more 48 32bit words [w16 to w63]
+		//add more 48 words of 32bit [w16 to w63]
 		for(uint32_t i = 16; i < 64; i++)
 		{
 			W[i] = sigma1(W[i-2]) + W[i-7] + sigma0(W[i-15]) + W[i-16];
@@ -297,7 +297,7 @@ uint8_t *sha256(uint8_t *Data, uint64_t DataSizeByte)
 	destroy_graph(Graph);
 	
 	//Deallocate DataBlock
-	for(uint32_t i = 0; i < NumOfBlocks; i++)
+	for(uint64_t i = 0; i < NumOfBlocks; i++)
 	{
 		free(DataBlock[i]);
 	}
