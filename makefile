@@ -1,18 +1,41 @@
 
 CC = gcc
 CC_FLAGS = -Wall -pedantic -O2 -c
+CC_DFLAGS = -Wall -pedantic -g -c
 
-PROG_FILENAME = digest256
+.PHONY: clean all
 
-all: ./obj/main.o ./obj/sha256.o
-	$(CC) -o $(PROG_FILENAME) $^
+all:
+	@echo "Command options:"
+	@echo " make test    --> build optimized version"
+	@echo " make test_d  --> build debug version"
+	@echo " make clean   --> erase build files and executable"
 
-./obj/main.o: main.c
+# Build optimized version
+test: test.o sha256.o prog_bar.o
+	$(CC) -o $@ $^
+
+test.o: test.c
 	$(CC) $(CC_FLAGS) -o $@ $^
 
-./obj/sha256.o: ./lib/sha256.c
+sha256.o: sha256.c
 	$(CC) $(CC_FLAGS) -o $@ $^ 
 
-.PHONY: clean
+prog_bar.o: prog_bar.c
+	$(CC) $(CC_FLAGS) -o $@ $^
+
+# Build debug version
+test_d: test_d.o sha256_d.o prog_bar_d.o
+	$(CC) -o $@ $^
+
+test_d.o: test.c
+	$(CC) $(CC_DFLAGS) -o $@ $^
+
+sha256_d.o: sha256.c
+	$(CC) $(CC_DFLAGS) -o $@ $^
+
+prog_bar_d.o: prog_bar.c
+	$(CC) $(CC_DFLAGS) -o $@ $^
+
 clean:
-	rm $(PROG_FILENAME) ./obj/*
+	rm *.o test test_d

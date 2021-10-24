@@ -4,11 +4,12 @@
 	Date: 26/06/2021 (DD/MM/YYYY)
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
  
-#include <math.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include "../include/sha256.h"
+
+#include "sha256.h"
+#include "prog_bar.h"
 
 #define DEBUG_FLAG		0
 
@@ -126,37 +127,6 @@ static uint32_t int_ratio_ceil(uint64_t Numerator, uint64_t Denominator)
 		return Numerator / Denominator;
 	}
 }
-/******************************************************************************/
-static void print_progress(uint64_t CurrState, uint64_t Min, uint64_t Max, uint32_t BarSize)
-{
-	uint32_t BarPosition;
-	float Percentage;
-	
-	//Divide by zero error
-	if(Min == Max)
-		return;
-	
-	//Calculating progress
-	BarPosition = (uint32_t)(((uint64_t)BarSize * (CurrState - Min)) / (Max - Min));
-	Percentage = 100.0 * ((float)(CurrState - Min) / (float)(Max - Min));
-	
-	//Drawing progress bar
-	fputs("\r[", stdout);
-	for(unsigned int i = 0; i < BarSize; i++)
-	{
-		if(i < BarPosition)
-		{
-			fputc('=', stdout);
-		}else
-		{
-			fputc('.', stdout);
-		}
-	}
-	if(CurrState > (Max - 1500)) Percentage = 100.0;
-	printf("] %.3f %%", Percentage);
-	fflush(stdout);
-
-}
 /*******************************************************************************/
 //Calculates sha256 of Data 
 uint8_t *sha256(uint8_t *Data, uint64_t DataSizeByte)
@@ -164,6 +134,9 @@ uint8_t *sha256(uint8_t *Data, uint64_t DataSizeByte)
 	uint64_t DataSizeBits;
 	uint32_t NumOfBlocks;
 	uint8_t **DataBlock;
+	
+	bar_t		*Bar;
+	bar_graph_t	*Graph;
 	
 	//schedule array
 	uint32_t W[64];
@@ -190,6 +163,10 @@ uint8_t *sha256(uint8_t *Data, uint64_t DataSizeByte)
 	{
 		DataBlock[i] = (uint8_t *)malloc(64 * sizeof(uint8_t));
 	}
+	
+	//Inicializing progress bar objects
+	Bar = init_bar(0, NumOfBlocks-1, 70, 1);
+	Graph = init_bar_graph('|', '#', ' ', '|');
 	
 	printf("Pre-processing data into blocks...\n");
 	for(uint32_t Block = 0; Block < NumOfBlocks; Block++)
@@ -228,18 +205,10 @@ uint8_t *sha256(uint8_t *Data, uint64_t DataSizeByte)
 			}
 		}
 		
-		/* Need better implementation for progress bar */
-		
-		if(NumOfBlocks > 150000)
-		{
-			if(((Block % 1500) == 0) | (Block == NumOfBlocks - 1))
-				print_progress((uint64_t)Block, 0, (uint64_t)(NumOfBlocks - 1), 50);
-		}
-		else
-		{
-			print_progress((uint64_t)Block, 0, (uint64_t)(NumOfBlocks - 1), 50);
-		}
+		//Update progress bar
+		update_bar(Bar, Graph, (uint64_t)Block);		
 	}
+	destroy_bar(Bar);
 
 #if DEBUG_FLAG
 	print_block(DataBlock, NumOfBlocks);
@@ -255,8 +224,11 @@ uint8_t *sha256(uint8_t *Data, uint64_t DataSizeByte)
 	H[6] = HashStart[6];  
 	H[7] = HashStart[7];  
 	
+	//Inicializing progress bar object
+	Bar = init_bar(0, NumOfBlocks-1, 70, 1);
+	
 	//Create message schedule loop 512bit block
-	printf("\nData compression...\n");
+	printf("Data compression...\n");
 	for(uint32_t Block = 0; Block < NumOfBlocks; Block++)
 	{
 		//(divide 512bits block into 16 32bit words [w0 t0 w15])
@@ -318,18 +290,11 @@ uint8_t *sha256(uint8_t *Data, uint64_t DataSizeByte)
 		H[6] += TmpH[g];
 		H[7] += TmpH[h];
 		
-		if(NumOfBlocks > 150000)
-		{
-			if((Block % 1500) == 0)
-				print_progress((uint64_t)Block, 0, (uint64_t)(NumOfBlocks - 1), 50);
-		}
-		else
-		{
-			print_progress((uint64_t)Block, 0, (uint64_t)(NumOfBlocks - 1), 50);
-		}
-		
+		//Update progress bar
+		update_bar(Bar, Graph, (uint64_t)Block);		
 	}
-	printf("\n");
+	destroy_bar(Bar);
+	destroy_graph(Graph);
 	
 	//Deallocate DataBlock
 	for(uint32_t i = 0; i < NumOfBlocks; i++)
@@ -350,8 +315,7 @@ uint8_t *sha256(uint8_t *Data, uint64_t DataSizeByte)
 		Digest[i+3] = (uint8_t)(H[i/4] & 0x000000FF);
 	}
 	
-	return Digest;
-	
+	return Digest;	
 }
 
 

@@ -9,7 +9,8 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <sys/stat.h>
-#include "./include/sha256.h"
+
+#include "sha256.h"
 
 #define DEBUG_FLAG		0
 
@@ -50,7 +51,7 @@ int main(int argc, char *argv[])
 	Digest = sha256(Data, FileSizeByte);
 	
 	//Printing digest
-	printf("\nDigest in hex: ");
+	printf("\nDigest in hex:\n");
 	for(uint32_t i = 0; i < 32; i++)
 	{
 		printf("%02x ", Digest[i]);
