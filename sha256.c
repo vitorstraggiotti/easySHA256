@@ -128,8 +128,10 @@ static uint32_t int_ratio_ceil(uint64_t Numerator, uint64_t Denominator)
 	}
 }
 /*******************************************************************************/
-//Calculates sha256 of Data 
-uint8_t *sha256(uint8_t *Data, uint64_t DataSizeByte)
+//Return 32 bytes digest of Data on success. Return NULL if fail.
+//VerboseStatus = SHA256_VERBOSE --> Will print progress
+//VerboseStatus = SHA256_NOT_VERBOSE --> Will not print progress
+uint8_t *sha256(uint8_t *Data, uint64_t DataSizeByte, uint8_t VerboseStatus)
 {
 	uint64_t DataSizeBits;
 	uint64_t NumOfBlocks;
@@ -150,14 +152,19 @@ uint8_t *sha256(uint8_t *Data, uint64_t DataSizeByte)
 	
 	//Pre-processing Data ------------------------------------------------------
 
-	//Calculating the data size in bits
-	DataSizeBits = DataSizeByte * 8;
+	//Calculating the data size in bits and checking for overflow
+	if((0xFFFFFFFFFFFFFFFF / 8) > DataSizeByte)
+		DataSizeBits = DataSizeByte * 8;
+	else
+		return NULL;
 	
 	//Calculating the quantity of 512bits data blocks
 	NumOfBlocks = int_ratio_ceil(DataSizeByte, 64);
 	
 	//Allocating 512bits blocks
-	printf("Allocating blocks in memory...\n");
+	if(VerboseStatus == SHA256_VERBOSE)
+		printf("Allocating blocks in memory...\n");
+	
 	DataBlock = (uint8_t **)malloc(NumOfBlocks * sizeof(uint8_t *));
 	for(uint64_t i = 0; i < NumOfBlocks; i++)
 	{
@@ -168,7 +175,9 @@ uint8_t *sha256(uint8_t *Data, uint64_t DataSizeByte)
 	Bar = init_bar(0, NumOfBlocks-1, 70, 1);
 	Graph = init_bar_graph('|', '#', ' ', '|');
 	
-	printf("Pre-processing data into blocks...\n");
+	if(VerboseStatus == SHA256_VERBOSE)
+		printf("Pre-processing data into blocks...\n");
+	
 	for(uint64_t Block = 0; Block < NumOfBlocks; Block++)
 	{
 		if(Block == NumOfBlocks - 1) //if it's in the last block
@@ -206,7 +215,8 @@ uint8_t *sha256(uint8_t *Data, uint64_t DataSizeByte)
 		}
 		
 		//Update progress bar
-		update_bar(Bar, Graph, Block);		
+		if(VerboseStatus == SHA256_VERBOSE)
+			update_bar(Bar, Graph, Block);		
 	}
 	destroy_bar(Bar);
 
@@ -228,7 +238,9 @@ uint8_t *sha256(uint8_t *Data, uint64_t DataSizeByte)
 	Bar = init_bar(0, NumOfBlocks-1, 70, 1);
 	
 	//Create message schedule loop 512bit block
-	printf("Data compression...\n");
+	if(VerboseStatus == SHA256_VERBOSE)
+		printf("Data compression...\n");
+	
 	for(uint64_t Block = 0; Block < NumOfBlocks; Block++)
 	{
 		//(divide 512bits block into 16 32bit words [w0 t0 w15])
@@ -291,7 +303,8 @@ uint8_t *sha256(uint8_t *Data, uint64_t DataSizeByte)
 		H[7] += TmpH[h];
 		
 		//Update progress bar
-		update_bar(Bar, Graph, (uint64_t)Block);		
+		if(VerboseStatus == SHA256_VERBOSE)
+			update_bar(Bar, Graph, (uint64_t)Block);		
 	}
 	destroy_bar(Bar);
 	destroy_graph(Graph);

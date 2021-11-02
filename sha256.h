@@ -7,10 +7,13 @@
 #ifndef SHA256_H
 #define SHA256_H
 
-
+#define SHA256_VERBOSE		1
+#define SHA256_NOT_VERBOSE	0
 /******************************************************************************/
-//Calculates sha256 of Data. Return pointer to 32 unsigned bytes.
-uint8_t *sha256(uint8_t *Data, uint64_t DataSizeByte);
+//Return 32 bytes digest of Data on success. Return NULL if fail.
+//VerboseStatus = SHA256_VERBOSE --> Will print progress
+//VerboseStatus = SHA256_NOT_VERBOSE --> Will not print progress
+uint8_t *sha256(uint8_t *Data, uint64_t DataSizeByte, uint8_t VerboseStatus);
 
 
 #endif

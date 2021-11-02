@@ -48,7 +48,7 @@ int main(int argc, char *argv[])
 	fclose(File);
 	
 	//Computing digest
-	Digest = sha256(Data, FileSizeByte);
+	Digest = sha256(Data, FileSizeByte, SHA256_NOT_VERBOSE);
 	
 	//Printing digest
 	printf("\nDigest in hex:\n");
