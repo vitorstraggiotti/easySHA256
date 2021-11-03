@@ -11,11 +11,9 @@
 #include "sha256.h"
 #include "prog_bar.h"
 
-#define DEBUG_FLAG		0
+#define DEBUG_FLAG			0
 
-//inicialize hash values (H)
-const uint32_t HashStart[8] =  {0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
-								0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19};
+#define BLOCK_SIZE_BYTE		64
 		
 //create round constants (K)
 const uint32_t K_const[64] =   {0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
@@ -37,7 +35,107 @@ const uint32_t K_const[64] =   {0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
 
 enum TmpH {a, b, c, d, e, f, g, h};
 
-/******************************************************************************/
+//==============================================================================
+//                 MAIN FUNCTIONS
+//==============================================================================
+//Return 32 bytes digest of Data on success. Return NULL if fail.
+//VerboseStatus = SHA256_VERBOSE --> Will print progress
+//VerboseStatus = SHA256_NOT_VERBOSE --> Will not print progress
+uint8_t *sha256(uint8_t *Data, uint64_t DataSizeByte, uint8_t VerboseStatus)
+{
+	uint64_t DataSizeBits;
+	uint64_t NumOfBlocks;
+	
+	bar_t		*Bar;
+	bar_graph_t	*Graph;
+	
+	//schedule array
+	uint32_t W[64];
+	
+	//H -> Block hash ; TmpH -> temporary hash in compression loop
+	//Temp1 and Temp2 are auxiliar variable to calculate TmpH[]
+	uint32_t H[8] = {0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
+					 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19};
+	uint32_t TmpH[8] = {0};
+	uint32_t Temp1 = 0, Temp2 = 0;
+	
+	//Hashed data
+	uint8_t *Digest;
+	
+	//Pre-processing Data ------------------------------------------------------
+	
+	//Creating block and converting to schedule array
+	if(create_schedule_array(Data, DataSizeByte, &W) == 1)
+	{
+	#error Implement success
+		complete_schedule_array(&W);
+	}
+
+ 
+	
+#error Make compression process a helper function
+	//SHA256 compression process
+	for(uint64_t Block = 0; Block < NumOfBlocks; Block++)
+	{
+		
+		//inicialize variables a, b, c, d, e, f, g, h to h[0::7] respectively
+		TmpH[a] = H[0];
+		TmpH[b] = H[1];
+		TmpH[c] = H[2];
+		TmpH[d] = H[3];
+		TmpH[e] = H[4];
+		TmpH[f] = H[5];
+		TmpH[g] = H[6];
+		TmpH[h] = H[7];
+		
+		//Compression of the message schedule (W[0::63]) -----------------------
+		for(uint32_t i = 0; i < 64; i++)
+		{
+			Temp1 = BigSigma1(TmpH[e]) + choice(TmpH[e], TmpH[f], TmpH[g]) + 
+					K_const[i] + W[i] + TmpH[h];
+			Temp2 = BigSigma0(TmpH[a]) + major(TmpH[a], TmpH[b], TmpH[c]);
+
+			TmpH[h] = TmpH[g];
+			TmpH[g] = TmpH[f];
+			TmpH[f] = TmpH[e];
+			TmpH[e] = TmpH[d] + Temp1;
+			TmpH[d] = TmpH[c];
+			TmpH[c] = TmpH[b];
+			TmpH[b] = TmpH[a];
+			TmpH[a] = Temp1 + Temp2;
+		}
+		//Update hash values for current block
+		H[0] += TmpH[a];
+		H[1] += TmpH[b];
+		H[2] += TmpH[c];
+		H[3] += TmpH[d];
+		H[4] += TmpH[e];
+		H[5] += TmpH[f];
+		H[6] += TmpH[g];
+		H[7] += TmpH[h];
+		
+	}
+
+
+	#error Implement allocation pointer for digest as helper function
+	//Allocate memory for digest pointer
+	Digest = (uint8_t *)malloc(32 * sizeof(uint8_t));
+	
+	//Prepare digest for return
+	for(uint32_t i = 0; i < 32; i += 4)
+	{
+		Digest[i]   = (uint8_t)((H[i/4] >> 24) & 0x000000FF);
+		Digest[i+1] = (uint8_t)((H[i/4] >> 16) & 0x000000FF);
+		Digest[i+2] = (uint8_t)((H[i/4] >> 8) & 0x000000FF);
+		Digest[i+3] = (uint8_t)(H[i/4] & 0x000000FF);
+	}
+	
+	return Digest;	
+}
+//==============================================================================
+//                 HELPER FUNCTIONS
+//==============================================================================
+
 #if DEBUG_FLAG
 //Print the pre-processed data in 512bits blocks (debug use)
 static void print_block(uint8_t **DataBlock, uint32_t NumOfBlocks)
@@ -127,209 +225,118 @@ static uint32_t int_ratio_ceil(uint64_t Numerator, uint64_t Denominator)
 		return Numerator / Denominator;
 	}
 }
-/*******************************************************************************/
-//Return 32 bytes digest of Data on success. Return NULL if fail.
-//VerboseStatus = SHA256_VERBOSE --> Will print progress
-//VerboseStatus = SHA256_NOT_VERBOSE --> Will not print progress
-uint8_t *sha256(uint8_t *Data, uint64_t DataSizeByte, uint8_t VerboseStatus)
-{
-	uint64_t DataSizeBits;
-	uint64_t NumOfBlocks;
-	uint8_t **DataBlock;
-	
-	bar_t		*Bar;
-	bar_graph_t	*Graph;
-	
-	//schedule array
-	uint32_t W[64];
-	
-	//H -> Block hash ; TmpH -> temporary hash in compression loop
-	//Temp1 and Temp2 are auxiliar variable to calculate TmpH[]
-	uint32_t H[8], TmpH[8], Temp1, Temp2;
-	
-	//Hashed data
-	uint8_t *Digest;
-	
-	//Pre-processing Data ------------------------------------------------------
-
-	//Calculating the data size in bits and checking for overflow
-	if((0xFFFFFFFFFFFFFFFF / 8) > DataSizeByte)
-		DataSizeBits = DataSizeByte * 8;
-	else
-		return NULL;
-	
-	//Calculating the quantity of 512bits data blocks
-	NumOfBlocks = int_ratio_ceil(DataSizeByte, 64);
-	
-	//Allocating 512bits blocks
-	if(VerboseStatus == SHA256_VERBOSE)
-		printf("Allocating blocks in memory...\n");
-	
-	DataBlock = (uint8_t **)malloc(NumOfBlocks * sizeof(uint8_t *));
-	for(uint64_t i = 0; i < NumOfBlocks; i++)
+/******************************************************************************/
+//Take data and partially fills the schedule array (w[0] to w[15]). Return 1 on
+// success and 0 if it ends or fail.
+static uint8_t create_schedule_array(uint8_t *Data, uint64_t DataSizeByte, uint32_t *W)
+{	
+	//Checking for file/data size limit
+	if((0xFFFFFFFFFFFFFFFF / 8) < DataSizeByte)
 	{
-		DataBlock[i] = (uint8_t *)malloc(64 * sizeof(uint8_t));
+		printf("Error! File/Data exceeds size limit of 20097152 TiB");
+		exit(EXIT_FAILURE);
+	}
+
+	//Starting with all data + 1 ending byte + 8 size byte
+	static uint64_t	RemainingDataSizeByte = DataSizeByte;
+	static uint8_t	TmpBlock[64];
+	static uint8_t	IsFinishedFlag = 0;
+	static uint8_t	SetEndOnNextBlockFlag = 0;
+	
+	//Clear schedule array before use
+	for(uint8_t i = 0; i < 64; i++)
+	{
+		w[i] = 0x0;
+		TmpBlock[i] = 0x0;
 	}
 	
-	//Inicializing progress bar objects
-	Bar = init_bar(0, NumOfBlocks-1, 70, 1);
-	Graph = init_bar_graph('|', '#', ' ', '|');
+	//Check for the end of schedule array creation
+	if(IsFinishedFlag)
+		return 0;	
 	
-	if(VerboseStatus == SHA256_VERBOSE)
-		printf("Pre-processing data into blocks...\n");
-	
-	for(uint64_t Block = 0; Block < NumOfBlocks; Block++)
+	//Creating 512 bits (64 bytes, 16 uint32_t) block with ending byte, padding
+	// and data size
+	for(uint8_t i = 0; i < 64; i++)
 	{
-		if(Block == NumOfBlocks - 1) //if it's in the last block
+		if(RemainingDataSizeByte > 0)
 		{
-			//copy the last bytes from Data
-			for(uint64_t ByteOnBlock = 0; ByteOnBlock < (DataSizeByte % 64); ByteOnBlock++)
-			{
-				DataBlock[Block][ByteOnBlock] = Data[(Block * 64) + ByteOnBlock];
-			}
-			//Append bit 1 at the end of data
-			DataBlock[Block][DataSizeByte % 64] = 0x80;
+			TmpBlock[i] = Data[DataSizeByte - RemainingDataSizeByte];
+			RemainingDataSizeByte--;
 			
-			//Pad with 0's until data is multiple of (512-64)=448
-			for(uint64_t ByteOnBlock = (DataSizeByte % 64) + 1; ByteOnBlock < 56; ByteOnBlock++)
+			if(RemainingDataSizeByte == 0) //Data ends before the end of the block
 			{
-				DataBlock[Block][ByteOnBlock] = 0x0;
+				if(i < 63)
+				{
+					i++;
+					TmpBlock[i] = 0x80;
+					if(i < 56)
+					{
+						//64 bits data size in bits with big endian representation
+						uint64_t DataSizeBits = DataSizeByte * 8;
+						TmpBlock[56] = (DataSizeBits >> 56) & 0x00000000000000FF;
+						TmpBlock[57] = (DataSizeBits >> 48) & 0x00000000000000FF;
+						TmpBlock[58] = (DataSizeBits >> 40) & 0x00000000000000FF;
+						TmpBlock[59] = (DataSizeBits >> 32) & 0x00000000000000FF;
+						TmpBlock[60] = (DataSizeBits >> 24) & 0x00000000000000FF;
+						TmpBlock[61] = (DataSizeBits >> 16) & 0x00000000000000FF;
+						TmpBlock[62] = (DataSizeBits >> 8) & 0x00000000000000FF;
+						TmpBlock[63] = DataSizeBits & 0x00000000000000FF;
+						IsFinishedFlag = 1;
+						goto outside1;
+					}
+					else //Block canot hold 64 bits data size value
+						goto outside1;
+				}
+				else //Last element of data is the last element on block
+				{
+					SetEndOnNextBlockFlag = 1;
+				}
 			}
-			//append 64bits of data size value in bits as big-endian
-			DataBlock[Block][56] = (DataSizeBits >> 56) & 0x00000000000000FF;
-			DataBlock[Block][57] = (DataSizeBits >> 48) & 0x00000000000000FF;
-			DataBlock[Block][58] = (DataSizeBits >> 40) & 0x00000000000000FF;
-			DataBlock[Block][59] = (DataSizeBits >> 32) & 0x00000000000000FF;
-			DataBlock[Block][60] = (DataSizeBits >> 24) & 0x00000000000000FF;
-			DataBlock[Block][61] = (DataSizeBits >> 16) & 0x00000000000000FF;
-			DataBlock[Block][62] = (DataSizeBits >> 8) & 0x00000000000000FF;
-			DataBlock[Block][63] = DataSizeBits & 0x00000000000000FF;
 		}
 		else
 		{
-			//copy bytes from Data to block
-			for(uint64_t ByteOnBlock = 0; ByteOnBlock < 64; ByteOnBlock++)
+			if((SetEndOnNextBlockFlag == 1) && (i == 0))
 			{
-				DataBlock[Block][ByteOnBlock] = Data[(Block * 64) + ByteOnBlock];
+				TmpBlock[i] = 0x80;
 			}
+			uint64_t DataSizeBits = DataSizeByte * 8;
+			TmpBlock[56] = (DataSizeBits >> 56) & 0x00000000000000FF;
+			TmpBlock[57] = (DataSizeBits >> 48) & 0x00000000000000FF;
+			TmpBlock[58] = (DataSizeBits >> 40) & 0x00000000000000FF;
+			TmpBlock[59] = (DataSizeBits >> 32) & 0x00000000000000FF;
+			TmpBlock[60] = (DataSizeBits >> 24) & 0x00000000000000FF;
+			TmpBlock[61] = (DataSizeBits >> 16) & 0x00000000000000FF;
+			TmpBlock[62] = (DataSizeBits >> 8) & 0x00000000000000FF;
+			TmpBlock[63] = DataSizeBits & 0x00000000000000FF;
+			IsFinishedFlag = 1;
+			goto outside1;
 		}
-		
-		//Update progress bar
-		if(VerboseStatus == SHA256_VERBOSE)
-			update_bar(Bar, Graph, Block);		
 	}
-	destroy_bar(Bar);
+	outside1:
 
-#if DEBUG_FLAG
-	print_block(DataBlock, NumOfBlocks);
-#endif
+	//Filling the schedule array
+	for(uint8_t i = 0; i < 64; i += 4)
+	{
+		W[i/4] = (((uint32_t)TmpBlock[i]) << 24) |
+				 (((uint32_t)TmpBlock[i + 1]) << 16) |
+				 (((uint32_t)TmpBlock[i + 2]) << 8) |
+				 ((uint32_t)TmpBlock[i + 3]);
+	}
 
-	//Inicialize current hash table
-	H[0] = HashStart[0];  
-	H[1] = HashStart[1];  
-	H[2] = HashStart[2];  
-	H[3] = HashStart[3];  
-	H[4] = HashStart[4];  
-	H[5] = HashStart[5];  
-	H[6] = HashStart[6];  
-	H[7] = HashStart[7];  
-	
-	//Inicializing progress bar object
-	Bar = init_bar(0, NumOfBlocks-1, 70, 1);
-	
-	//Create message schedule loop 512bit block
-	if(VerboseStatus == SHA256_VERBOSE)
-		printf("Data compression...\n");
-	
-	for(uint64_t Block = 0; Block < NumOfBlocks; Block++)
-	{
-		//(divide 512bits block into 16 32bit words [w0 t0 w15])
-		for(uint64_t ByteOnBlock = 0; ByteOnBlock < 64; ByteOnBlock += 4)
-		{
-			W[ByteOnBlock / 4] = (((uint32_t)DataBlock[Block][ByteOnBlock]) << 24) |
-								 (((uint32_t)DataBlock[Block][ByteOnBlock + 1]) << 16) |
-								 (((uint32_t)DataBlock[Block][ByteOnBlock + 2]) << 8) |
-								 ((uint32_t)DataBlock[Block][ByteOnBlock + 3]);
-			
-#if DEBUG_FLAG
-			printf("w(%d): %08x\n", ByteOnBlock/4, W[ByteOnBlock/4]);
-#endif
-		}
-		
-		//add more 48 words of 32bit [w16 to w63]
-		for(uint32_t i = 16; i < 64; i++)
-		{
-			W[i] = sigma1(W[i-2]) + W[i-7] + sigma0(W[i-15]) + W[i-16];
-			
-#if DEBUG_FLAG
-			printf("w(%d): %08x\n", i, W[i]);
-#endif
-		}
-		
-		//inicialize variables a, b, c, d, e, f, g, h to h[0::7] respectively
-		TmpH[a] = H[0];
-		TmpH[b] = H[1];
-		TmpH[c] = H[2];
-		TmpH[d] = H[3];
-		TmpH[e] = H[4];
-		TmpH[f] = H[5];
-		TmpH[g] = H[6];
-		TmpH[h] = H[7];
-		
-		//Compression of the message schedule (W[0::63]) -----------------------
-		for(uint32_t i = 0; i < 64; i++)
-		{
-			Temp1 = BigSigma1(TmpH[e]) + choice(TmpH[e], TmpH[f], TmpH[g]) + 
-					K_const[i] + W[i] + TmpH[h];
-			Temp2 = BigSigma0(TmpH[a]) + major(TmpH[a], TmpH[b], TmpH[c]);
-
-			TmpH[h] = TmpH[g];
-			TmpH[g] = TmpH[f];
-			TmpH[f] = TmpH[e];
-			TmpH[e] = TmpH[d] + Temp1;
-			TmpH[d] = TmpH[c];
-			TmpH[c] = TmpH[b];
-			TmpH[b] = TmpH[a];
-			TmpH[a] = Temp1 + Temp2;
-		}
-		//Update hash values for current block
-		H[0] += TmpH[a];
-		H[1] += TmpH[b];
-		H[2] += TmpH[c];
-		H[3] += TmpH[d];
-		H[4] += TmpH[e];
-		H[5] += TmpH[f];
-		H[6] += TmpH[g];
-		H[7] += TmpH[h];
-		
-		//Update progress bar
-		if(VerboseStatus == SHA256_VERBOSE)
-			update_bar(Bar, Graph, (uint64_t)Block);		
-	}
-	destroy_bar(Bar);
-	destroy_graph(Graph);
-	
-	//Deallocate DataBlock
-	for(uint64_t i = 0; i < NumOfBlocks; i++)
-	{
-		free(DataBlock[i]);
-	}
-	free(DataBlock);
-	
-	//Allocate memory for digest pointer
-	Digest = (uint8_t *)malloc(32 * sizeof(uint8_t));
-	
-	//Prepare digest for return
-	for(uint32_t i = 0; i < 32; i += 4)
-	{
-		Digest[i]   = (uint8_t)((H[i/4] >> 24) & 0x000000FF);
-		Digest[i+1] = (uint8_t)((H[i/4] >> 16) & 0x000000FF);
-		Digest[i+2] = (uint8_t)((H[i/4] >> 8) & 0x000000FF);
-		Digest[i+3] = (uint8_t)(H[i/4] & 0x000000FF);
-	}
-	
-	return Digest;	
+	return 1;
 }
+/******************************************************************************/
+static void complete_schedule_array(uint32_t *W)
+{
+	//add more 48 words of 32bit [w16 to w63]
+	for(uint8_t i = 16; i < 64; i++)
+	{
+		W[i] = sigma1(W[i-2]) + W[i-7] + sigma0(W[i-15]) + W[i-16];
+	}
+}
+
+
+
 
 
 
