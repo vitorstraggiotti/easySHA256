@@ -3,7 +3,7 @@ A tiny and simple C library without dependencies that compute SHA256 digest from
 Comes with a test program that compute the SHA256 disgest of an input file.
 
 To use this library you need to add these files to your project: `prog_bar.c`,`prog_bar.h`,
-`sha256.c` and `sha256.h`
+`sha256.c` and `sha256.h`. After that, just put `#include <sha256.h>` on you main program.
 
 These are the functions available:
 ```c
