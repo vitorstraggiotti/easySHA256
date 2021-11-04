@@ -51,7 +51,7 @@ int main(int argc, char *argv[])
 	Digest = sha256(Data, FileSizeByte, SHA256_NOT_VERBOSE);
 	
 	//Printing digest
-	printf("\nDigest in hex:\n");
+	printf("Digest in hex:\n");
 	for(uint32_t i = 0; i < 32; i++)
 	{
 		printf("%02x ", Digest[i]);
