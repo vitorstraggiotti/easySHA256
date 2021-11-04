@@ -2,7 +2,7 @@
 	Simple program to compute the SHA256 digest of given file
 
 	Author: Vitor Henrique Andrade Helfensteller Straggiotti
-	Date: 29/06/2021 (DD/MM/YYYY)
+	Date: 04/11/2021 (DD/MM/YYYY)
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include <stdio.h>
@@ -16,12 +16,7 @@
 
 int main(int argc, char *argv[])
 {
-	FILE *File;
-	uint8_t *Digest, *Data;
-	uint64_t FileSizeByte = 0;
-
-	//Hold file informations
-	struct stat FileStatus;
+	uint8_t *Digest;
 
 	//input arguments validation
 	if(argc != 2)
@@ -30,25 +25,9 @@ int main(int argc, char *argv[])
 		printf("Use: %s <path_to_file>\n", argv[0]);
 		exit(EXIT_FAILURE);
 	}
-
-	//Open file on read only mode and find size in bytes
-	if((File = fopen(argv[1], "rb")) == NULL)
-	{
-		printf("Error: Could not open file or it does not exist.\n");
-		exit(EXIT_FAILURE);
-	}
-	stat(argv[1], &FileStatus);
-	FileSizeByte = FileStatus.st_size;
-
-	/* Need Rewrite to compute digest without geting the entire file into RAM */
-	
-	//Copying file into memory
-	Data = (uint8_t *)malloc(FileSizeByte * sizeof(uint8_t));
-	fread(Data, sizeof(uint8_t), FileSizeByte, File);
-	fclose(File);
 	
 	//Computing digest
-	Digest = sha256_data(Data, FileSizeByte, SHA256_VERBOSE);
+	Digest = sha256_file(argv[1], SHA256_VERBOSE);
 	
 	//Printing digest
 	printf("\nDigest in hex:\n");

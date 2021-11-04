@@ -7,6 +7,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <sys/stat.h>
 
 #include "sha256.h"
 #include "prog_bar.h"
@@ -78,23 +79,10 @@ static uint32_t major(uint32_t x, uint32_t y, uint32_t z)
 {
 	return (x & y) ^ (x & z) ^ (y & z);
 }
-/*******************************************************************************/
-//Ceil function of a division
-static uint32_t int_ratio_ceil(uint64_t Numerator, uint64_t Denominator)
-{
-	if((Numerator % Denominator) != 0)
-	{
-		return (Numerator / Denominator) + 1;
-	}
-	else
-	{
-		return Numerator / Denominator;
-	}
-}
 /******************************************************************************/
 //Take data and partially fills the schedule array (w[0] to w[15]). Return 1 on
 // success and 0 if it ends or fail.
-static uint8_t create_schedule_array(uint8_t *Data, uint64_t DataSizeByte, uint64_t *RemainingDataSizeByte, uint32_t *W)
+static uint8_t create_schedule_array_data(uint8_t *Data, uint64_t DataSizeByte, uint64_t *RemainingDataSizeByte, uint32_t *W)
 {	
 	//Checking for file/data size limit
 	if((0xFFFFFFFFFFFFFFFF / 8) < DataSizeByte)
@@ -129,6 +117,113 @@ static uint8_t create_schedule_array(uint8_t *Data, uint64_t DataSizeByte, uint6
 			*RemainingDataSizeByte = *RemainingDataSizeByte - 1;
 			
 			if(*RemainingDataSizeByte == 0) //Data ends before the end of the block
+			{
+				if(i < 63)
+				{
+					i++;
+					TmpBlock[i] = 0x80;
+					if(i < 56)
+					{
+						//64 bits data size in bits with big endian representation
+						uint64_t DataSizeBits = DataSizeByte * 8;
+						TmpBlock[56] = (DataSizeBits >> 56) & 0x00000000000000FF;
+						TmpBlock[57] = (DataSizeBits >> 48) & 0x00000000000000FF;
+						TmpBlock[58] = (DataSizeBits >> 40) & 0x00000000000000FF;
+						TmpBlock[59] = (DataSizeBits >> 32) & 0x00000000000000FF;
+						TmpBlock[60] = (DataSizeBits >> 24) & 0x00000000000000FF;
+						TmpBlock[61] = (DataSizeBits >> 16) & 0x00000000000000FF;
+						TmpBlock[62] = (DataSizeBits >> 8) & 0x00000000000000FF;
+						TmpBlock[63] = DataSizeBits & 0x00000000000000FF;
+						IsFinishedFlag = 1;
+						goto outside1;
+					}
+					else //Block canot hold 64 bits data size value
+						goto outside1;
+				}
+				else //Last element of data is the last element on block
+				{
+					SetEndOnNextBlockFlag = 1;
+				}
+			}
+		}
+		else
+		{
+			if((SetEndOnNextBlockFlag == 1) && (i == 0))
+			{
+				TmpBlock[i] = 0x80;
+			}
+			uint64_t DataSizeBits = DataSizeByte * 8;
+			TmpBlock[56] = (DataSizeBits >> 56) & 0x00000000000000FF;
+			TmpBlock[57] = (DataSizeBits >> 48) & 0x00000000000000FF;
+			TmpBlock[58] = (DataSizeBits >> 40) & 0x00000000000000FF;
+			TmpBlock[59] = (DataSizeBits >> 32) & 0x00000000000000FF;
+			TmpBlock[60] = (DataSizeBits >> 24) & 0x00000000000000FF;
+			TmpBlock[61] = (DataSizeBits >> 16) & 0x00000000000000FF;
+			TmpBlock[62] = (DataSizeBits >> 8) & 0x00000000000000FF;
+			TmpBlock[63] = DataSizeBits & 0x00000000000000FF;
+			IsFinishedFlag = 1;
+			goto outside1;
+		}
+	}
+	outside1:
+
+	//Filling the schedule array
+	for(uint8_t i = 0; i < 64; i += 4)
+	{
+		W[i/4] = (((uint32_t)TmpBlock[i]) << 24) |
+				 (((uint32_t)TmpBlock[i + 1]) << 16) |
+				 (((uint32_t)TmpBlock[i + 2]) << 8) |
+				 ((uint32_t)TmpBlock[i + 3]);
+	}
+
+	return 1;
+}
+/******************************************************************************/
+//Take data and partially fills the schedule array (w[0] to w[15]). Return 1 on
+// success and 0 if it ends or fail.
+static uint8_t create_schedule_array_file(FILE *File_fp, uint64_t DataSizeByte, uint32_t *W)
+{
+	//Checking for file/data size limit
+	if((0xFFFFFFFFFFFFFFFF / 8) < DataSizeByte)
+	{
+		printf("Error! File/Data exceeds size limit of 20097152 TiB");
+		exit(EXIT_FAILURE);
+	}
+
+	//Starting with all data + 1 ending byte + 8 size byte
+	static uint8_t	TmpBlock[64];
+	static uint8_t	IsFinishedFlag = 0;
+	static uint8_t	SetEndOnNextBlockFlag = 0;
+	static uint8_t	RemainingDataFlag = 1;
+	
+	uint8_t	BytesRead;
+	
+	//Clear schedule array before use
+	for(uint8_t i = 0; i < 64; i++)
+	{
+		W[i] = 0x0;
+		TmpBlock[i] = 0x0;
+	}
+	
+	//Check for the end of schedule array creation
+	if(IsFinishedFlag)
+		return 0;	
+	
+	//Creating 512 bits (64 bytes, 16 uint32_t) block with ending byte, padding
+	// and data size
+	for(uint8_t i = 0; i < 64; i++)
+	{
+		if(RemainingDataFlag == 1)
+		{
+			if((BytesRead = fread(TmpBlock, sizeof(uint8_t), BLOCK_SIZE_BYTE, File_fp)) != BLOCK_SIZE_BYTE)
+			{
+				RemainingDataFlag = 0;
+				i = BytesRead - 1;
+			}
+			else
+				goto outside1;
+			
+			if(RemainingDataFlag == 0) //Data ends before the end of the block
 			{
 				if(i < 63)
 				{
@@ -289,7 +384,7 @@ static uint8_t *extract_digest(uint32_t *Hash)
 //Return 32 bytes digest of Data on success. Return NULL if fail.
 //VerboseStatus = SHA256_VERBOSE --> Will print progress
 //VerboseStatus = SHA256_NOT_VERBOSE --> Will not print progress
-uint8_t *sha256(uint8_t *Data, uint64_t DataSizeByte, uint8_t VerboseStatus)
+uint8_t *sha256_data(uint8_t *Data, uint64_t DataSizeByte, uint8_t VerboseStatus)
 {	
 	bar_graph_t	*BarGraph;
 	bar_t		*Bar;
@@ -308,26 +403,103 @@ uint8_t *sha256(uint8_t *Data, uint64_t DataSizeByte, uint8_t VerboseStatus)
 	
 	uint64_t RemainingDataSizeByte = DataSizeByte;
 	
-	Bar = init_bar(0, DataSizeByte/BLOCK_SIZE_BYTE, 70, 1);
-	BarGraph = init_bar_graph('|','#',' ','|');
+	if(VerboseStatus == SHA256_VERBOSE)
+	{
+		Bar = init_bar(0, DataSizeByte/BLOCK_SIZE_BYTE, 70, 1);
+		BarGraph = init_bar_graph('|','#',' ','|');
+		printf("\n");
+	}
 	
-	printf("\n");
-	while(create_schedule_array(Data, DataSizeByte, &RemainingDataSizeByte, W) == 1)
+	while(create_schedule_array_data(Data, DataSizeByte, &RemainingDataSizeByte, W) == 1)
 	{
 		complete_schedule_array(W);
 		compression(Hash, W);
-		update_bar(Bar, BarGraph, CurrProgressState);
-		CurrProgressState++;
+		
+		if(VerboseStatus == SHA256_VERBOSE)
+		{
+			update_bar(Bar, BarGraph, CurrProgressState);
+			CurrProgressState++;
+		}
 	}
 	
 	Digest = extract_digest(Hash);
 	
-	destroy_bar(Bar);
-	destroy_graph(BarGraph);
+	if(VerboseStatus == SHA256_VERBOSE)
+	{
+		destroy_bar(Bar);
+		destroy_graph(BarGraph);
+	}
 	
 	return Digest;
 }
+/******************************************************************************/
+//Return 32 bytes digest of file on success. Return NULL if fail.
+//VerboseStatus = SHA256_VERBOSE --> Will print progress
+//VerboseStatus = SHA256_NOT_VERBOSE --> Will not print progress
+uint8_t *sha256_file(const char *Filename, uint8_t VerboseStatus)
+{	
+	bar_graph_t	*BarGraph;
+	bar_t		*Bar;
+	uint64_t	CurrProgressState = 0;
+	
+	//schedule array
+	uint32_t	W[64];
+	
+	//H -> Block hash ; TmpH -> temporary hash in compression loop
+	//Temp1 and Temp2 are auxiliar variable to calculate TmpH[]
+	uint32_t	Hash[8] = {0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
+						   0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19};
+	
+	//Hashed data
+	uint8_t *Digest;
+	
+	uint64_t DataSizeByte;
+	FILE *File_fp;
+	
+	
+	if((File_fp = fopen(Filename, "rb")) == NULL)
+	{
+		printf("Could not read file!");
+		exit(EXIT_FAILURE);
+	}
+	
+	//Find input file size
+	struct stat Status;
+	stat(Filename, &Status);
+	DataSizeByte = Status.st_size;
+	
+	if(VerboseStatus == SHA256_VERBOSE)
+	{
+		Bar = init_bar(0, DataSizeByte/BLOCK_SIZE_BYTE, 70, 1);
+		BarGraph = init_bar_graph('|','#',' ','|');
+		printf("\n");
+	}
+	
+	while(create_schedule_array_file(File_fp, DataSizeByte, W) == 1)
+	{
+		complete_schedule_array(W);
+		compression(Hash, W);
+		
+		if(VerboseStatus == SHA256_VERBOSE)
+		{
+			update_bar(Bar, BarGraph, CurrProgressState);
+			CurrProgressState++;
+		}
+	}
+	
+	Digest = extract_digest(Hash);
+	
 
+	if(VerboseStatus == SHA256_VERBOSE)
+	{
+		destroy_bar(Bar);
+		destroy_graph(BarGraph);
+	}
+	
+	fclose(File_fp);
+	
+	return Digest;
+}
 
 
 
