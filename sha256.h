@@ -7,8 +7,8 @@
 #ifndef SHA256_H
 #define SHA256_H
 
-#define SHA256_VERBOSE		1
-#define SHA256_NOT_VERBOSE	0
+#define VERBOSE		1
+#define NOT_VERBOSE	0
 
 /******************************************************************************/
 //Return 32 bytes digest of Data array on success. Return NULL if fail.

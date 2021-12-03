@@ -403,7 +403,7 @@ uint8_t *sha256_data(uint8_t *Data, uint64_t DataSizeByte, uint8_t VerboseStatus
 	
 	uint64_t RemainingDataSizeByte = DataSizeByte;
 	
-	if(VerboseStatus == SHA256_VERBOSE)
+	if(VerboseStatus == VERBOSE)
 	{
 		Bar = init_bar(0, DataSizeByte/BLOCK_SIZE_BYTE, 70, 1);
 		BarGraph = init_bar_graph('|','#',' ','|');
@@ -415,7 +415,7 @@ uint8_t *sha256_data(uint8_t *Data, uint64_t DataSizeByte, uint8_t VerboseStatus
 		complete_schedule_array(W);
 		compression(Hash, W);
 		
-		if(VerboseStatus == SHA256_VERBOSE)
+		if(VerboseStatus == VERBOSE)
 		{
 			update_bar(Bar, BarGraph, CurrProgressState);
 			CurrProgressState++;
@@ -424,7 +424,7 @@ uint8_t *sha256_data(uint8_t *Data, uint64_t DataSizeByte, uint8_t VerboseStatus
 	
 	Digest = extract_digest(Hash);
 	
-	if(VerboseStatus == SHA256_VERBOSE)
+	if(VerboseStatus == VERBOSE)
 	{
 		destroy_bar(Bar);
 		destroy_graph(BarGraph);
@@ -468,7 +468,7 @@ uint8_t *sha256_file(const char *Filename, uint8_t VerboseStatus)
 	stat(Filename, &Status);
 	DataSizeByte = Status.st_size;
 	
-	if(VerboseStatus == SHA256_VERBOSE)
+	if(VerboseStatus == VERBOSE)
 	{
 		Bar = init_bar(0, DataSizeByte/BLOCK_SIZE_BYTE, 70, 1);
 		BarGraph = init_bar_graph('|','#',' ','|');
@@ -480,7 +480,7 @@ uint8_t *sha256_file(const char *Filename, uint8_t VerboseStatus)
 		complete_schedule_array(W);
 		compression(Hash, W);
 		
-		if(VerboseStatus == SHA256_VERBOSE)
+		if(VerboseStatus == VERBOSE)
 		{
 			update_bar(Bar, BarGraph, CurrProgressState);
 			CurrProgressState++;
@@ -490,7 +490,7 @@ uint8_t *sha256_file(const char *Filename, uint8_t VerboseStatus)
 	Digest = extract_digest(Hash);
 	
 
-	if(VerboseStatus == SHA256_VERBOSE)
+	if(VerboseStatus == VERBOSE)
 	{
 		destroy_bar(Bar);
 		destroy_graph(BarGraph);
