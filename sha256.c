@@ -92,20 +92,16 @@ static uint8_t create_schedule_array_data(uint8_t *Data, uint64_t DataSizeByte, 
 	}
 
 	//Starting with all data + 1 ending byte + 8 size byte
-	static uint8_t	TmpBlock[64];
-	static uint8_t	IsFinishedFlag = 0;
+	uint8_t			TmpBlock[64];
+	uint8_t			IsFinishedFlag = 0;
 	static uint8_t	SetEndOnNextBlockFlag = 0;
 	
 	//Clear schedule array before use
 	for(uint8_t i = 0; i < 64; i++)
 	{
 		W[i] = 0x0;
-		TmpBlock[i] = 0x0;
+		TmpBlock[i] = 0x0; //Necessary for 0 padding on last block
 	}
-	
-	//Check for the end of schedule array creation
-	if(IsFinishedFlag)
-		return 0;	
 	
 	//Creating 512 bits (64 bytes, 16 uint32_t) block with ending byte, padding
 	// and data size
@@ -151,6 +147,7 @@ static uint8_t create_schedule_array_data(uint8_t *Data, uint64_t DataSizeByte, 
 			if((SetEndOnNextBlockFlag == 1) && (i == 0))
 			{
 				TmpBlock[i] = 0x80;
+				SetEndOnNextBlockFlag = 0;
 			}
 			uint64_t DataSizeBits = DataSizeByte * 8;
 			TmpBlock[56] = (DataSizeBits >> 56) & 0x00000000000000FF;
@@ -176,7 +173,10 @@ static uint8_t create_schedule_array_data(uint8_t *Data, uint64_t DataSizeByte, 
 				 ((uint32_t)TmpBlock[i + 3]);
 	}
 
-	return 1;
+	if(IsFinishedFlag == 1)
+		return 0;
+	else
+		return 1;
 }
 /******************************************************************************/
 //Take data and partially fills the schedule array (w[0] to w[15]). Return 1 on
@@ -191,8 +191,8 @@ static uint8_t create_schedule_array_file(FILE *File_fp, uint64_t DataSizeByte, 
 	}
 
 	//Starting with all data + 1 ending byte + 8 size byte
-	static uint8_t	TmpBlock[64];
-	static uint8_t	IsFinishedFlag = 0;
+	uint8_t			TmpBlock[64];
+	uint8_t			IsFinishedFlag = 0;
 	static uint8_t	SetEndOnNextBlockFlag = 0;
 	static uint8_t	RemainingDataFlag = 1;
 	
@@ -202,16 +202,12 @@ static uint8_t create_schedule_array_file(FILE *File_fp, uint64_t DataSizeByte, 
 	for(uint8_t i = 0; i < 64; i++)
 	{
 		W[i] = 0x0;
-		TmpBlock[i] = 0x0;
-	}
-	
-	//Check for the end of schedule array creation
-	if(IsFinishedFlag)
-		return 0;	
+		TmpBlock[i] = 0x0; //Necessary for 0 padding on last block
+	}	
 	
 	//Creating 512 bits (64 bytes, 16 uint32_t) block with ending byte, padding
 	// and data size
-	for(uint8_t i = 0; i < 64; i++)
+	for(int8_t i = 0; i < 64; i++)
 	{
 		if(RemainingDataFlag == 1)
 		{
@@ -241,6 +237,7 @@ static uint8_t create_schedule_array_file(FILE *File_fp, uint64_t DataSizeByte, 
 						TmpBlock[61] = (DataSizeBits >> 16) & 0x00000000000000FF;
 						TmpBlock[62] = (DataSizeBits >> 8) & 0x00000000000000FF;
 						TmpBlock[63] = DataSizeBits & 0x00000000000000FF;
+						RemainingDataFlag = 1;
 						IsFinishedFlag = 1;
 						goto outside1;
 					}
@@ -258,6 +255,7 @@ static uint8_t create_schedule_array_file(FILE *File_fp, uint64_t DataSizeByte, 
 			if((SetEndOnNextBlockFlag == 1) && (i == 0))
 			{
 				TmpBlock[i] = 0x80;
+				SetEndOnNextBlockFlag = 0;
 			}
 			uint64_t DataSizeBits = DataSizeByte * 8;
 			TmpBlock[56] = (DataSizeBits >> 56) & 0x00000000000000FF;
@@ -268,6 +266,7 @@ static uint8_t create_schedule_array_file(FILE *File_fp, uint64_t DataSizeByte, 
 			TmpBlock[61] = (DataSizeBits >> 16) & 0x00000000000000FF;
 			TmpBlock[62] = (DataSizeBits >> 8) & 0x00000000000000FF;
 			TmpBlock[63] = DataSizeBits & 0x00000000000000FF;
+			RemainingDataFlag = 1;
 			IsFinishedFlag = 1;
 			goto outside1;
 		}
@@ -283,7 +282,10 @@ static uint8_t create_schedule_array_file(FILE *File_fp, uint64_t DataSizeByte, 
 				 ((uint32_t)TmpBlock[i + 3]);
 	}
 
-	return 1;
+	if(IsFinishedFlag == 1)
+		return 0;
+	else
+		return 1;
 }
 /******************************************************************************/
 static void complete_schedule_array(uint32_t *W)
@@ -421,6 +423,10 @@ uint8_t *sha256_data(uint8_t *Data, uint64_t DataSizeByte, uint8_t VerboseStatus
 			CurrProgressState++;
 		}
 	}
+	complete_schedule_array(W);
+	compression(Hash, W);
+	if(VerboseStatus == VERBOSE)
+		update_bar(Bar, BarGraph, CurrProgressState);
 	
 	Digest = extract_digest(Hash);
 	
@@ -486,6 +492,10 @@ uint8_t *sha256_file(const char *Filename, uint8_t VerboseStatus)
 			CurrProgressState++;
 		}
 	}
+	complete_schedule_array(W);
+	compression(Hash, W);
+	if(VerboseStatus == VERBOSE)
+		update_bar(Bar, BarGraph, CurrProgressState);
 	
 	Digest = extract_digest(Hash);
 	
